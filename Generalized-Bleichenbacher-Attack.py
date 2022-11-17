@@ -19,16 +19,17 @@ def local_setup(oracle_prfix="0011111111", choose_plaintext=b"flag{this_is_a_sam
     pub_key = priv_key.public_key()
     pn = pub_key.public_numbers()
     ciphertext = pow(int.from_bytes(choose_plaintext, "big"), pn.e, pn.n)
+    
+    if verbose:
+        print('  keysize: {}'.format(priv_key.key_size))
+        print('  e: {}'.format(pn.e))
+        print('  n: {}'.format(pn.n))
+        print('  p: {}'.format(priv_key.private_numbers().p))
+        print('  q: {}'.format(priv_key.private_numbers().q))
+        print('  d: {}'.format(priv_key.private_numbers().d))
 
-    print('  keysize: {}'.format(priv_key.key_size))
-    print('  e: {}'.format(pn.e))
-    print('  n: {}'.format(pn.n))
-    print('  p: {}'.format(priv_key.private_numbers().p))
-    print('  q: {}'.format(priv_key.private_numbers().q))
-    print('  d: {}'.format(priv_key.private_numbers().d))
-
-    print('  c: {}'.format(hex(ciphertext)))
-    print()
+        print('  c: {}'.format(hex(ciphertext)))
+        print()
     
     if oracle_prfix == "pkcs1.5":
         prefix_nbits = 16
@@ -85,6 +86,7 @@ def pad_message(prefix, nbytes, m):
 
 
 oracle_ctr = 0
+verbose = True
 def rsa_prefix_padding_oracle_attack(n, e, ct, padding_prefix, oracle):
     print('Generalized Bleichenbacher RSA Padding Oracle Attack')
     print('  for more info see 1998 paper.')
@@ -111,11 +113,12 @@ def rsa_prefix_padding_oracle_attack(n, e, ct, padding_prefix, oracle):
     _lB = prefix_num * B
     _uB = (prefix_num + 1) * B
     padding_pos = nbits - prefix_nbits
-    print("[+] Testing the strict bounds, valid bounds should output : ttff")
-    print((_lB >> padding_pos) == prefix_num)
-    print(((_uB - 1) >> padding_pos) == prefix_num)
-    print((_lB-1 >> padding_pos) == prefix_num)
-    print(((_uB) >> padding_pos) == prefix_num)
+    if verbose:
+        print("[+] Testing the strict bounds, valid bounds should output : ttff")
+        print((_lB >> padding_pos) == prefix_num)
+        print(((_uB - 1) >> padding_pos) == prefix_num)
+        print((_lB-1 >> padding_pos) == prefix_num)
+        print(((_uB) >> padding_pos) == prefix_num)
 
     def multiply(x, y): return (x * pow(y, e, n)) % n
 
@@ -142,27 +145,27 @@ def rsa_prefix_padding_oracle_attack(n, e, ct, padding_prefix, oracle):
         c0 = multiply(c0, s)
         assert oracle_int(c0)
         const_s *= s
-        print(f"case 1 done {s} times")
+        print(f"Ciphertext of unpadded message: case 1 done {s} times")
 
     while True:
         if i == 1:
-            print('start case 2.a: ', end='', flush=True)
+            if verbose: print('start case 2.a: ', end='', flush=True)
             ss = ceildiv(n, _uB)
             while not oracle_int(multiply(c0, ss)):
                 ss = ss + 1
-            print('done. found s1 in {} iterations: {}'.format(
+            if verbose: print('done. found s1 in {} iterations: {}'.format(
                 ss - ceildiv(n, _uB), ss))
         else:
             assert i > 1
             if len(M) > 1:
-                print('start case 2.b: ', end='', flush=True)
+                if verbose: print('start case 2.b: ', end='', flush=True)
                 ss = s + 1
                 while not oracle_int(multiply(c0, ss)):
                     ss = ss + 1
-                print('done. found s{} in {} iterations: {}'.format(
+                if verbose : print('done. found s{} in {} iterations: {}'.format(
                     i, ss-s, ss))
             else:
-                print('start case 2.c: ', end='', flush=True)
+                if verbose: print('start case 2.c: ', end='', flush=True)
                 assert len(M) == 1
                 a, b = M[0]
                 r = ceildiv(2 * (b * s - _lB), n)
@@ -182,7 +185,7 @@ def rsa_prefix_padding_oracle_attack(n, e, ct, padding_prefix, oracle):
                         r = r + 1
                         continue
                     break
-                print('done. found s{} in {} iterations: {}'.format(i, ctr, ss))
+                if verbose: print('done. found s{} in {} iterations: {}'.format(i, ctr, ss))
         # step 3, narrowing solutions
         MM = []
         for a, b in M:
@@ -194,7 +197,7 @@ def rsa_prefix_padding_oracle_attack(n, e, ct, padding_prefix, oracle):
                 )
                 if m not in MM:
                     MM.append(m)
-                    print('found interval [{},{}]'.format(m[0], m[1]))
+                    if verbose: print('found interval [{},{}]'.format(m[0], m[1]))
         # step 4, compute solutions
         M = MM
         s = ss
@@ -210,7 +213,7 @@ def rsa_prefix_padding_oracle_attack(n, e, ct, padding_prefix, oracle):
             else:
                 message = M[0][0]
             m_len = (message.bit_length()-1)//8 + 1
-            print(message.to_bytes(m_len, 'big'))
+            print("[+] decrypted message : ", message.to_bytes(m_len, 'big'))
             print('raw decryption in hex format: {}'.format(
                 hex(message)))
             return
@@ -223,8 +226,7 @@ if __name__ == "__main__":
     
     # unpadded bersion
     oracle_prfix = bin(1145)[2:].zfill(11)
+    print(f"[+] Try the prefix {oracle_prfix = }")
     choose_plaintext = b"flag{this_is_a_sample_flag_for_testing!}"
-    
-    print(choose_plaintext)
     ciphertext, oracle, e, n = local_setup(oracle_prfix,choose_plaintext)
     rsa_prefix_padding_oracle_attack(n,e,ciphertext,oracle_prfix,oracle)

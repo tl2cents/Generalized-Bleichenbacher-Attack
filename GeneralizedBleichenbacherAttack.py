@@ -86,7 +86,7 @@ def pad_message(prefix, nbytes, m):
 
 
 oracle_ctr = 0
-verbose = True
+verbose = False
 def rsa_prefix_padding_oracle_attack(n, e, ct, padding_prefix, oracle):
     print('Generalized Bleichenbacher RSA Padding Oracle Attack')
     print('  for more info see 1998 paper.')
